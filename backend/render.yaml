@@ -18,6 +18,8 @@ services:
     healthCheckPath: /health
 
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: CORS_ORIGINS
         value: https://your-app.vercel.app  # ← replace with your Vercel URL
       - key: MODEL_PATH
