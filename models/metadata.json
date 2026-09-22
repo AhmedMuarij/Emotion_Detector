@@ -1,15 +1,17 @@
 {
   "model_name": "emotion_cnn",
-  "model_version": "0.1.0",
+  "model_version": "0.2.0",
   "model_file": "emotion_cnn.keras",
   "framework": "tensorflow.keras",
   "task": "facial_expression_recognition",
+  "disclaimer": "Classifies visible facial expressions. Does not determine internal emotional state.",
   "input": {
     "height": 48,
     "width": 48,
     "channels": 1,
     "color_mode": "grayscale",
-    "normalization": "divide_by_255"
+    "normalization": "divide_by_255",
+    "dtype": "float32"
   },
   "num_classes": 5,
   "class_to_index": {
@@ -28,12 +30,24 @@
   },
   "training": {
     "dataset": "FER2013",
-    "excluded_classes": ["disgust", "fear"],
-    "notes": "Initial weights saved / training in progress. Will be updated upon final epoch."
+    "balanced_samples_per_class": 3000,
+    "total_train_samples": 15000,
+    "epochs_planned": 25,
+    "epochs_run": 25,
+    "trained_at_utc": "2026-09-22T11:44:22.288448+00:00",
+    "augmentation": "horizontal_flip, rotation, zoom, shift"
   },
   "evaluation": {
-    "test_accuracy": null,
-    "notes": "Training in progress."
-  },
-  "disclaimer": "Classifies visible facial expressions. Does not determine internal emotional state."
+    "test_accuracy": 0.6254,
+    "test_loss": 0.9406,
+    "best_val_accuracy": 0.6245,
+    "per_class_accuracy": {
+      "Angry": 0.3852,
+      "Happy": 0.8596,
+      "Sad": 0.3039,
+      "Surprise": 0.8039,
+      "Neutral": 0.6796
+    },
+    "note": "Measured on held-out test set."
+  }
 }

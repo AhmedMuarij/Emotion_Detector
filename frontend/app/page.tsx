@@ -3,11 +3,10 @@
 /**
  * EmotionAI — Main Dashboard Page
  *
- * Layout: two-column on desktop (camera left, prediction right),
- * single-column stack on mobile.
- *
- * State is owned here and passed down to child components.
- * API/webcam logic lives in lib/api.ts and components/WebcamCapture.tsx.
+ * Clean light-theme layout:
+ * - Top header with logo + API status
+ * - Two-column on desktop (camera | prediction), single-column on mobile
+ * - Soft color palette, no dark backgrounds, no gradients
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -23,13 +22,12 @@ import type {
 import CameraControls from "@/components/CameraControls";
 import PredictionDisplay from "@/components/PredictionDisplay";
 
-// WebcamCapture uses browser APIs — must be client-side only (no SSR)
 const WebcamCapture = dynamic(() => import("@/components/WebcamCapture"), {
   ssr: false,
   loading: () => (
     <div
-      className="w-full rounded-xl flex items-center justify-center"
-      style={{ height: 300, background: "rgba(0,0,0,0.4)" }}
+      className="w-full flex items-center justify-center"
+      style={{ height: 340, background: "var(--bg-subtle)", borderRadius: "var(--radius-md)" }}
     >
       <div className="spinner" />
     </div>
@@ -49,7 +47,6 @@ export default function HomePage() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isRunning, setIsRunning] = useState(false);
 
-  // ── Check backend health on mount ──────────────────────────────────────
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
@@ -60,8 +57,6 @@ export default function HomePage() {
 
       if (healthResult.ok && healthResult.data.status === "ok") {
         setState((s) => ({ ...s, backendAvailable: true }));
-
-        // Load model info
         const infoResult = await getModelInfo(controller.signal);
         if (mounted && infoResult.ok) {
           setState((s) => ({ ...s, modelInfo: infoResult.data }));
@@ -72,262 +67,363 @@ export default function HomePage() {
     };
 
     probe();
-    // Re-probe every 15 seconds to detect backend coming online
     const interval = setInterval(probe, 15_000);
-
-    return () => {
-      mounted = false;
-      controller.abort();
-      clearInterval(interval);
-    };
+    return () => { mounted = false; controller.abort(); clearInterval(interval); };
   }, []);
 
-  // ── Callbacks passed to children ───────────────────────────────────────
   const handleCameraStatus = useCallback((status: CameraStatus) => {
     setState((s) => ({ ...s, cameraStatus: status }));
   }, []);
-
   const handleInferenceStatus = useCallback((status: InferenceStatus) => {
     setState((s) => ({ ...s, inferenceStatus: status }));
   }, []);
-
   const handlePrediction = useCallback((result: PredictionResponse) => {
-    setState((s) => ({
-      ...s,
-      latestPrediction: result,
-      errorMessage: null,
-    }));
+    setState((s) => ({ ...s, latestPrediction: result, errorMessage: null }));
   }, []);
-
   const handleError = useCallback((message: string) => {
     setState((s) => ({ ...s, errorMessage: message }));
   }, []);
-
   const handleStart = useCallback(() => {
     setState((s) => ({ ...s, errorMessage: null, latestPrediction: null }));
     setIsRunning(true);
   }, []);
-
-  const handleStop = useCallback(() => {
-    setIsRunning(false);
-  }, []);
+  const handleStop = useCallback(() => { setIsRunning(false); }, []);
 
   const { cameraStatus, inferenceStatus, latestPrediction, errorMessage, backendAvailable, modelInfo } = state;
 
+  const EXPRESSIONS = modelInfo?.supported_expressions ?? ["Angry", "Happy", "Sad", "Surprise", "Neutral"];
+  const EMOJI_MAP: Record<string, string> = {
+    Angry: "😠", Happy: "😊", Sad: "😢", Surprise: "😮", Neutral: "😐",
+  };
+
   return (
-    <main className="relative z-10 min-h-screen">
-      {/* ── Header ────────────────────────────────────────────────────── */}
-      <header className="border-b" style={{ borderColor: "var(--border-subtle)" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Logo mark */}
+    <div style={{ minHeight: "100vh", background: "var(--bg-app)" }}>
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <header
+        style={{
+          background: "var(--bg-surface)",
+          borderBottom: "1px solid var(--border-base)",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: "0 auto",
+            padding: "0 24px",
+            height: 64,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold"
               style={{
-                background: "linear-gradient(135deg, #3182ce, #553c9a)",
-                boxShadow: "0 0 20px rgba(49,130,206,0.4)",
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: "var(--blue-light)",
+                border: "1.5px solid var(--blue-ring)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                flexShrink: 0,
               }}
             >
               🧠
             </div>
             <div>
-              <h1 className="font-display font-bold text-lg leading-none" style={{ color: "var(--text-primary)" }}>
+              <h1
+                className="font-display"
+                style={{ fontSize: "1.05rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}
+              >
                 EmotionAI
               </h1>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 1 }}>
                 Facial Expression Recognition
               </p>
             </div>
           </div>
 
-          {/* Backend status pill */}
-          <div className={`glow-badge ${backendAvailable ? "badge-active" : "badge-error"}`}>
-            <span className={`pulse-dot ${backendAvailable ? "pulse-dot-green" : "pulse-dot-red"}`} />
-            {backendAvailable ? "API Online" : "API Offline"}
+          {/* Nav links + status */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Model badge */}
+            {modelInfo && (
+              <span
+                className="badge badge-info"
+                style={{ display: "flex" }}
+              >
+                CNN · v{modelInfo.model_version}
+              </span>
+            )}
+            {/* API status */}
+            <span className={`badge ${backendAvailable ? "badge-online" : "badge-offline"}`}>
+              <span className={`pulse-dot ${backendAvailable ? "dot-green" : "dot-red"}`} />
+              {backendAvailable ? "API Online" : "API Offline"}
+            </span>
           </div>
         </div>
       </header>
 
-      {/* ── Hero tagline ──────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-2">
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Real-time expression classification using a CNN trained on FER2013 ·{" "}
-          <span style={{ color: "var(--accent-blue)" }}>
-            Classifies visible facial expressions
-          </span>{" "}
-          — not internal emotional state
-        </p>
-      </div>
+      {/* ── Page body ───────────────────────────────────────────────── */}
+      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px 48px" }}>
 
-      {/* ── Main content ─────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* ── LEFT: Camera ──────────────────────────────────────────── */}
-        <div className="space-y-5">
-          {/* Camera card */}
-          <div className="glass p-1 overflow-hidden" style={{ borderRadius: 20 }}>
-            {/* Camera preview area */}
-            <div
-              className="relative rounded-2xl overflow-hidden flex items-center justify-center"
-              style={{ minHeight: 300, background: "rgba(0,0,0,0.6)" }}
-            >
-              {isRunning ? (
-                <WebcamCapture
-                  isRunning={isRunning}
-                  onCameraStatusChange={handleCameraStatus}
-                  onInferenceStatusChange={handleInferenceStatus}
-                  onPrediction={handlePrediction}
-                  onError={handleError}
-                  frameIntervalMs={1000}
-                />
-              ) : (
-                /* Camera placeholder */
-                <div className="flex flex-col items-center gap-4 py-14">
-                  <div
-                    className="w-20 h-20 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(49,130,206,0.1)", border: "2px dashed rgba(99,179,237,0.3)" }}
-                  >
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(99,179,237,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M23 7l-7 5 7 5V7z" />
-                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                    </svg>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-semibold" style={{ color: "var(--text-secondary)" }}>
-                      Camera is off
-                    </p>
-                    <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-                      Click Start Camera to begin
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Controls card */}
-          <div className="glass p-5" style={{ borderRadius: 20 }}>
-            <CameraControls
-              cameraStatus={cameraStatus}
-              inferenceStatus={inferenceStatus}
-              isRunning={isRunning}
-              backendAvailable={backendAvailable}
-              onStart={handleStart}
-              onStop={handleStop}
-            />
-          </div>
-
-          {/* Error message */}
-          {errorMessage && (
-            <div
-              className="rounded-xl px-4 py-3 text-sm flex items-start gap-3"
-              style={{
-                background: "rgba(252,129,129,0.08)",
-                border: "1px solid rgba(252,129,129,0.2)",
-                color: "#fc8181",
-              }}
-              role="alert"
-              aria-live="polite"
-            >
-              <span>⚠️</span>
-              <p>{errorMessage}</p>
-            </div>
-          )}
-
-          {/* Supported expressions */}
-          <div className="glass p-5" style={{ borderRadius: 20 }}>
-            <p className="text-xs uppercase tracking-widest font-medium mb-3" style={{ color: "var(--text-muted)" }}>
-              Supported Expressions
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {(modelInfo?.supported_expressions ?? ["Angry", "Happy", "Sad", "Surprise", "Neutral"]).map((expr) => {
-                const emojiMap: Record<string, string> = {
-                  Angry: "😠", Happy: "😊", Sad: "😢", Surprise: "😮", Neutral: "😐",
-                };
-                return (
-                  <span
-                    key={expr}
-                    className="glow-badge badge-idle"
-                    style={{ fontSize: "0.7rem" }}
-                  >
-                    {emojiMap[expr] ?? "🎭"} {expr}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
+        {/* Sub-header */}
+        <div style={{ marginBottom: 24 }}>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", maxWidth: 580 }}>
+            Real-time facial expression classification using a CNN trained on FER2013.{" "}
+            <span style={{ color: "var(--blue)", fontWeight: 500 }}>
+              Classifies visible expressions only
+            </span>{" "}
+            — not internal emotional state.
+          </p>
         </div>
 
-        {/* ── RIGHT: Prediction ──────────────────────────────────────── */}
-        <div className="space-y-5">
-          {/* Prediction card */}
-          <div className="glass p-6" style={{ borderRadius: 20, minHeight: 340 }}>
-            <p className="text-xs uppercase tracking-widest font-medium mb-5" style={{ color: "var(--text-muted)" }}>
-              Live Prediction
-            </p>
-            <PredictionDisplay
-              prediction={latestPrediction}
-              inferenceStatus={inferenceStatus}
-            />
-          </div>
+        {/* ── Two-column grid ─────────────────────────────────────── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gap: 24,
+            alignItems: "start",
+          }}
+        >
 
-          {/* Model info card */}
-          {modelInfo && (
-            <div className="glass p-5" style={{ borderRadius: 20 }}>
-              <p className="text-xs uppercase tracking-widest font-medium mb-3" style={{ color: "var(--text-muted)" }}>
-                Model Information
-              </p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>Name</p>
-                  <p style={{ color: "var(--text-secondary)" }}>{modelInfo.model_name}</p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>Version</p>
-                  <p style={{ color: "var(--text-secondary)" }}>v{modelInfo.model_version}</p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>Input</p>
-                  <p style={{ color: "var(--text-secondary)" }}>
-                    {modelInfo.input.height}×{modelInfo.input.width} grayscale
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>Classes</p>
-                  <p style={{ color: "var(--text-secondary)" }}>{modelInfo.num_classes}</p>
-                </div>
+          {/* ── LEFT: Camera Column ─────────────────────────────── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Camera feed card */}
+            <div className="card-elevated" style={{ padding: 20 }}>
+              <p className="section-label">Live Camera</p>
+
+              {/* Video area */}
+              <div
+                style={{
+                  background: "var(--bg-subtle)",
+                  border: "1.5px solid var(--border-base)",
+                  borderRadius: "var(--radius-md)",
+                  overflow: "hidden",
+                  minHeight: 300,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
+                  aspectRatio: "4/3",
+                }}
+              >
+                {isRunning ? (
+                  <WebcamCapture
+                    isRunning={isRunning}
+                    onCameraStatusChange={handleCameraStatus}
+                    onInferenceStatusChange={handleInferenceStatus}
+                    onPrediction={handlePrediction}
+                    onError={handleError}
+                    frameIntervalMs={1000}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 14,
+                      padding: "40px 20px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: "50%",
+                        background: "var(--blue-light)",
+                        border: "2px dashed var(--blue-ring)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <svg
+                        width="30" height="30" viewBox="0 0 24 24"
+                        fill="none" stroke="var(--blue)" strokeWidth="1.8"
+                        strokeLinecap="round" strokeLinejoin="round"
+                      >
+                        <path d="M23 7l-7 5 7 5V7z" />
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                      </svg>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontWeight: 600, color: "var(--text-secondary)", fontSize: "0.95rem" }}>
+                        Camera is off
+                      </p>
+                      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 4 }}>
+                        Press Start Camera below to begin
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Controls */}
+              <div style={{ marginTop: 16 }}>
+                <CameraControls
+                  cameraStatus={cameraStatus}
+                  inferenceStatus={inferenceStatus}
+                  isRunning={isRunning}
+                  backendAvailable={backendAvailable}
+                  onStart={handleStart}
+                  onStop={handleStop}
+                />
               </div>
             </div>
-          )}
 
-          {/* Privacy notice */}
-          <div
-            className="rounded-2xl p-4 text-xs space-y-1"
-            style={{
-              background: "rgba(99,179,237,0.05)",
-              border: "1px solid rgba(99,179,237,0.1)",
-              color: "var(--text-muted)",
-            }}
-          >
-            <p className="font-semibold" style={{ color: "var(--accent-blue)" }}>
-              🔒 Privacy
-            </p>
-            <p>Camera frames are sent to the local inference API only. No images are stored, logged, or transmitted to third parties.</p>
-            <p>This system classifies <em>visible facial expressions</em>. It does not determine internal emotional state, mental health, or personality.</p>
+            {/* Error */}
+            {errorMessage && (
+              <div className="alert alert-error" role="alert" aria-live="polite">
+                <span style={{ flexShrink: 0 }}>⚠️</span>
+                <p>{errorMessage}</p>
+              </div>
+            )}
+
+            {/* Supported expressions card */}
+            <div className="card" style={{ padding: "18px 20px" }}>
+              <p className="section-label">Supported Expressions</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {EXPRESSIONS.map((expr) => (
+                  <span key={expr} className="expr-chip">
+                    {EMOJI_MAP[expr] ?? "🎭"}{" "}{expr}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Model info card */}
+            {modelInfo && (
+              <div className="card" style={{ padding: "18px 20px" }}>
+                <p className="section-label">Model Details</p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px 20px",
+                  }}
+                >
+                  {[
+                    { label: "Architecture", value: modelInfo.model_name },
+                    { label: "Version",      value: `v${modelInfo.model_version}` },
+                    { label: "Input size",   value: `${modelInfo.input.height}×${modelInfo.input.width} grayscale` },
+                    { label: "Classes",      value: String(modelInfo.num_classes) },
+                    { label: "Dataset",      value: "FER2013" },
+                    { label: "Framework",    value: "TensorFlow/Keras" },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        {label}
+                      </p>
+                      <p style={{ fontSize: "0.85rem", fontWeight: 500, color: "var(--text-secondary)", marginTop: 2 }}>
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── RIGHT: Prediction Column ─────────────────────────── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Live prediction card */}
+            <div
+              className="card-elevated"
+              style={{ padding: 24, minHeight: 360 }}
+            >
+              <p className="section-label">Live Prediction</p>
+              <PredictionDisplay
+                prediction={latestPrediction}
+                inferenceStatus={inferenceStatus}
+              />
+            </div>
+
+            {/* Privacy notice */}
+            <div className="alert alert-info" style={{ alignItems: "flex-start" }}>
+              <span style={{ fontSize: "1rem", flexShrink: 0 }}>🔒</span>
+              <div>
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>Privacy Notice</p>
+                <p style={{ fontSize: "0.78rem", lineHeight: 1.55, color: "#3357CC", opacity: 0.85 }}>
+                  Frames are sent only to the local inference API. No images are stored, logged, or
+                  transmitted externally. This system classifies visible facial expressions — it does{" "}
+                  <em>not</em> determine internal emotional state, mental health, or personality.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick stats row */}
+            {isRunning && (
+              <div
+                className="card"
+                style={{
+                  padding: "16px 20px",
+                  display: "flex",
+                  justifyContent: "space-around",
+                  textAlign: "center",
+                }}
+              >
+                {[
+                  { label: "Sample Rate",   value: "1 fps" },
+                  { label: "Face Crop",     value: "Haar" },
+                  { label: "Input",         value: "48×48 gray" },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <p
+                      className="font-display"
+                      style={{ fontWeight: 700, fontSize: "1rem", color: "var(--blue)" }}
+                    >
+                      {value}
+                    </p>
+                    <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* ── Footer ───────────────────────────────────────────────────── */}
+      {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer
-        className="border-t mt-8 py-6"
-        style={{ borderColor: "var(--border-subtle)" }}
+        style={{
+          borderTop: "1px solid var(--border-base)",
+          background: "var(--bg-surface)",
+          padding: "18px 24px",
+        }}
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          <p>EmotionAI · CNN trained on FER2013 · 5-class facial expression recognition</p>
-          <p>Portfolio project · MIT License</p>
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: "0 auto",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <p style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+            EmotionAI · CNN trained on FER2013 · 5-class facial expression recognition
+          </p>
+          <p style={{ fontSize: "0.78rem", color: "var(--text-faint)" }}>
+            Portfolio project · MIT License
+          </p>
         </div>
       </footer>
-    </main>
+    </div>
   );
 }

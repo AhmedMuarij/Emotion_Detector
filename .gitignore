@@ -20,6 +20,8 @@ htmlcov/
 data/raw/
 data/processed/
 data/reports/
+!data/reports/evaluation_summary.json
+!data/reports/classification_report.txt
 train/
 test/
 archive.zip
