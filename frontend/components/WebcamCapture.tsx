@@ -13,6 +13,7 @@
  *   (via `isProcessing` ref), preventing request pile-up.
  * - Camera tracks are explicitly stopped when the component unmounts or
  *   the user clicks Stop — the browser camera indicator light turns off.
+ * - Supports front/back camera toggle on mobile devices.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -42,6 +43,11 @@ export default function WebcamCapture({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const isProcessingRef = useRef(false);
+
+  // "user" = front camera, "environment" = back camera
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const facingModeRef = useRef(facingMode);
+  facingModeRef.current = facingMode;
 
   const stopCamera = useCallback(() => {
     // Cancel any in-flight request
@@ -121,67 +127,85 @@ export default function WebcamCapture({
     isProcessingRef.current = false;
   }, [onPrediction, onInferenceStatusChange, onError]);
 
-  // Start / stop camera when isRunning changes
+  // Start camera with the given facing mode
+  const startCamera = useCallback(async (facing: "user" | "environment") => {
+    // Stop existing stream first
+    abortRef.current?.abort();
+    abortRef.current = null;
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    onCameraStatusChange("requesting");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: facing,
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      onCameraStatusChange("active");
+
+      // Begin frame capture loop
+      intervalRef.current = setInterval(captureAndSend, frameIntervalMs);
+    } catch (err) {
+      if (err instanceof Error) {
+        if (
+          err.name === "NotAllowedError" ||
+          err.name === "PermissionDeniedError"
+        ) {
+          onCameraStatusChange("denied");
+          onError(
+            "Camera permission denied. Please allow camera access in your browser settings."
+          );
+        } else if (
+          err.name === "NotFoundError" ||
+          err.name === "DevicesNotFoundError"
+        ) {
+          onCameraStatusChange("error");
+          onError("No camera found. Please connect a camera and try again.");
+        } else {
+          onCameraStatusChange("error");
+          onError(`Camera error: ${err.message}`);
+        }
+      }
+    }
+  }, [captureAndSend, frameIntervalMs, onCameraStatusChange, onError]);
+
+  // Start / stop camera when isRunning or facingMode changes
   useEffect(() => {
     if (!isRunning) {
       stopCamera();
       return;
     }
 
-    const startCamera = async () => {
-      onCameraStatusChange("requesting");
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: "user",
-          },
-          audio: false,
-        });
-
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-        onCameraStatusChange("active");
-
-        // Begin frame capture loop
-        intervalRef.current = setInterval(captureAndSend, frameIntervalMs);
-      } catch (err) {
-        if (err instanceof Error) {
-          if (
-            err.name === "NotAllowedError" ||
-            err.name === "PermissionDeniedError"
-          ) {
-            onCameraStatusChange("denied");
-            onError(
-              "Camera permission denied. Please allow camera access in your browser settings."
-            );
-          } else if (
-            err.name === "NotFoundError" ||
-            err.name === "DevicesNotFoundError"
-          ) {
-            onCameraStatusChange("error");
-            onError("No camera found. Please connect a camera and try again.");
-          } else {
-            onCameraStatusChange("error");
-            onError(`Camera error: ${err.message}`);
-          }
-        }
-      }
-    };
-
-    startCamera();
+    startCamera(facingMode);
 
     return () => {
       stopCamera();
     };
-  }, [isRunning, captureAndSend, frameIntervalMs, onCameraStatusChange, onError, stopCamera]);
+  }, [isRunning, facingMode, startCamera, stopCamera]);
+
+  // Toggle between front and back camera
+  const handleFlipCamera = useCallback(() => {
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+  }, []);
 
   return (
-    <div className="relative w-full">
+    <div style={{ position: "relative", width: "100%" }}>
       {/* Live video preview */}
       <video
         ref={videoRef}
@@ -192,6 +216,78 @@ export default function WebcamCapture({
         style={{ maxHeight: "360px", background: "#000" }}
         aria-label="Webcam preview"
       />
+
+      {/* Flip camera button — floating overlay */}
+      <button
+        id="btn-flip-camera"
+        onClick={handleFlipCamera}
+        title={facingMode === "user" ? "Switch to back camera" : "Switch to front camera"}
+        aria-label="Flip camera"
+        style={{
+          position: "absolute",
+          top: 12,
+          right: 12,
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          background: "rgba(0, 0, 0, 0.5)",
+          backdropFilter: "blur(8px)",
+          border: "1.5px solid rgba(255, 255, 255, 0.25)",
+          color: "#FFFFFF",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          transition: "all 0.2s ease",
+          zIndex: 10,
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = "rgba(0, 0, 0, 0.7)";
+          (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = "rgba(0, 0, 0, 0.5)";
+          (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+        }}
+      >
+        {/* Camera flip icon */}
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
+          <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5" />
+          <circle cx="12" cy="12" r="3" />
+          <path d="m18 22-3-3 3-3" />
+          <path d="m6 2 3 3-3 3" />
+        </svg>
+      </button>
+
+      {/* Camera mode indicator */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 12,
+          left: 12,
+          padding: "4px 10px",
+          borderRadius: 999,
+          background: "rgba(0, 0, 0, 0.5)",
+          backdropFilter: "blur(8px)",
+          color: "#FFFFFF",
+          fontSize: "0.68rem",
+          fontWeight: 600,
+          letterSpacing: "0.03em",
+          zIndex: 10,
+        }}
+      >
+        {facingMode === "user" ? "📷 Front" : "📷 Back"}
+      </div>
 
       {/* Hidden canvas for frame extraction */}
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />

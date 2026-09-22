@@ -11,7 +11,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { checkHealth, getModelInfo } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import type {
   AppState,
   CameraStatus,
@@ -44,8 +46,17 @@ const INITIAL_STATE: AppState = {
 };
 
 export default function HomePage() {
+  const { user, isLoading: authLoading, logout } = useAuth();
+  const router = useRouter();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isRunning, setIsRunning] = useState(false);
+
+  // ── Authentication route guard ──────────────────────────────────────────
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     let mounted = true;
@@ -95,6 +106,22 @@ export default function HomePage() {
   const EMOJI_MAP: Record<string, string> = {
     Angry: "😠", Happy: "😊", Sad: "😢", Surprise: "😮", Neutral: "😐",
   };
+
+  if (authLoading || !user) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--bg-app)",
+        }}
+      >
+        <div className="spinner" style={{ width: 36, height: 36 }} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-app)" }}>
@@ -151,22 +178,68 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Nav links + status */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {/* Nav links + status + User profile */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             {/* Model badge */}
             {modelInfo && (
               <span
-                className="badge badge-info"
+                className="badge badge-info hidden sm:inline-flex"
                 style={{ display: "flex" }}
               >
                 CNN · v{modelInfo.model_version}
               </span>
             )}
+
             {/* API status */}
             <span className={`badge ${backendAvailable ? "badge-online" : "badge-offline"}`}>
               <span className={`pulse-dot ${backendAvailable ? "dot-green" : "dot-red"}`} />
-              {backendAvailable ? "API Online" : "API Offline"}
+              <span className="hidden sm:inline">{backendAvailable ? "API Online" : "API Offline"}</span>
             </span>
+
+            {/* User Profile Chip & Logout */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                paddingLeft: 12,
+                borderLeft: "1px solid var(--border-base)",
+              }}
+            >
+              <img
+                src={user.avatar}
+                alt={user.name}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  border: "1.5px solid var(--blue-ring)",
+                  background: "var(--bg-subtle)",
+                  objectFit: "cover",
+                }}
+              />
+              <div className="hidden md:block" style={{ lineHeight: 1.15, textAlign: "left" }}>
+                <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  {user.name}
+                </p>
+                <p style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                  {user.email}
+                </p>
+              </div>
+              <button
+                id="btn-signout"
+                onClick={logout}
+                className="btn btn-ghost"
+                style={{
+                  padding: "5px 12px",
+                  fontSize: "0.75rem",
+                  borderRadius: "var(--radius-sm)",
+                }}
+                title="Sign out of EmotionAI"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -174,31 +247,13 @@ export default function HomePage() {
       {/* ── Page body ───────────────────────────────────────────────── */}
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px 48px" }}>
 
-        {/* Sub-header */}
-        <div style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", maxWidth: 580 }}>
-            Real-time facial expression classification using a CNN trained on FER2013.{" "}
-            <span style={{ color: "var(--blue)", fontWeight: 500 }}>
-              Classifies visible expressions only
-            </span>{" "}
-            — not internal emotional state.
-          </p>
-        </div>
+        {/* ── Dashboard grid ──────────────────────────────────────── */}
+        {/* Mobile: Camera → Prediction → Expressions (stacked full-width)
+            Desktop: two-column side-by-side */}
+        <div className="dashboard-grid">
 
-        {/* ── Two-column grid ─────────────────────────────────────── */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-            gap: 24,
-            alignItems: "start",
-          }}
-        >
-
-          {/* ── LEFT: Camera Column ─────────────────────────────── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-            {/* Camera feed card */}
+          {/* ── 1. Live Camera ────────────────────────────────────── */}
+          <div className="grid-camera">
             <div className="card-elevated" style={{ padding: 20 }}>
               <p className="section-label">Live Camera</p>
 
@@ -289,56 +344,10 @@ export default function HomePage() {
                 <p>{errorMessage}</p>
               </div>
             )}
-
-            {/* Supported expressions card */}
-            <div className="card" style={{ padding: "18px 20px" }}>
-              <p className="section-label">Supported Expressions</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {EXPRESSIONS.map((expr) => (
-                  <span key={expr} className="expr-chip">
-                    {EMOJI_MAP[expr] ?? "🎭"}{" "}{expr}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Model info card */}
-            {modelInfo && (
-              <div className="card" style={{ padding: "18px 20px" }}>
-                <p className="section-label">Model Details</p>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "12px 20px",
-                  }}
-                >
-                  {[
-                    { label: "Architecture", value: modelInfo.model_name },
-                    { label: "Version",      value: `v${modelInfo.model_version}` },
-                    { label: "Input size",   value: `${modelInfo.input.height}×${modelInfo.input.width} grayscale` },
-                    { label: "Classes",      value: String(modelInfo.num_classes) },
-                    { label: "Dataset",      value: "FER2013" },
-                    { label: "Framework",    value: "TensorFlow/Keras" },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                        {label}
-                      </p>
-                      <p style={{ fontSize: "0.85rem", fontWeight: 500, color: "var(--text-secondary)", marginTop: 2 }}>
-                        {value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* ── RIGHT: Prediction Column ─────────────────────────── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-            {/* Live prediction card */}
+          {/* ── 2. Live Prediction ────────────────────────────────── */}
+          <div className="grid-prediction">
             <div
               className="card-elevated"
               style={{ padding: 24, minHeight: 360 }}
@@ -350,19 +359,6 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Privacy notice */}
-            <div className="alert alert-info" style={{ alignItems: "flex-start" }}>
-              <span style={{ fontSize: "1rem", flexShrink: 0 }}>🔒</span>
-              <div>
-                <p style={{ fontWeight: 600, marginBottom: 4 }}>Privacy Notice</p>
-                <p style={{ fontSize: "0.78rem", lineHeight: 1.55, color: "#3357CC", opacity: 0.85 }}>
-                  Frames are sent only to the local inference API. No images are stored, logged, or
-                  transmitted externally. This system classifies visible facial expressions — it does{" "}
-                  <em>not</em> determine internal emotional state, mental health, or personality.
-                </p>
-              </div>
-            </div>
-
             {/* Quick stats row */}
             {isRunning && (
               <div
@@ -372,12 +368,13 @@ export default function HomePage() {
                   display: "flex",
                   justifyContent: "space-around",
                   textAlign: "center",
+                  marginTop: 20,
                 }}
               >
                 {[
-                  { label: "Sample Rate",   value: "1 fps" },
-                  { label: "Face Crop",     value: "Haar" },
-                  { label: "Input",         value: "48×48 gray" },
+                  { label: "Sample Rate", value: "1 fps" },
+                  { label: "Face Crop", value: "Haar" },
+                  { label: "Input", value: "48×48 gray" },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p
@@ -394,6 +391,21 @@ export default function HomePage() {
               </div>
             )}
           </div>
+
+          {/* ── 3. Supported Expressions ──────────────────────────── */}
+          <div className="grid-expressions">
+            <div className="card" style={{ padding: "18px 20px" }}>
+              <p className="section-label">Supported Expressions</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {EXPRESSIONS.map((expr) => (
+                  <span key={expr} className="expr-chip">
+                    {EMOJI_MAP[expr] ?? "🎭"}{" "}{expr}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
         </div>
       </main>
 

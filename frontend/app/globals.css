@@ -308,3 +308,25 @@ video {
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   font-size: 0.82em;
 }
+
+/* ── Dashboard Grid — Mobile-first responsive layout ───────────────── */
+.dashboard-grid {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+  /* Mobile: single column, natural DOM order → Camera → Prediction → Expressions */
+  grid-template-columns: 1fr;
+}
+
+/* Desktop (768px+): two-column layout */
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "camera    prediction"
+      "expressions  prediction";
+  }
+  .grid-camera      { grid-area: camera; }
+  .grid-prediction  { grid-area: prediction; }
+  .grid-expressions { grid-area: expressions; }
+}

@@ -79,3 +79,12 @@ export interface AppState {
   backendAvailable: boolean;
   modelInfo: ModelInfoResponse | null;
 }
+
+// ── Authentication types ───────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+}
