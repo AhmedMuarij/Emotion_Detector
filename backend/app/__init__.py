@@ -1,0 +1,1 @@
+"""EmotionAI FastAPI backend package."""

@@ -1,0 +1,37 @@
+{
+  "dataset": "FER2013",
+  "task": "facial_expression_recognition",
+  "terminology_note": "Labels refer to visible facial expressions, not internal emotional states.",
+  "image": {
+    "height": 48,
+    "width": 48,
+    "channels": 1,
+    "color_mode": "grayscale",
+    "normalization": "divide_by_255",
+    "dtype": "float32"
+  },
+  "source_folder_names": {
+    "angry": "Angry",
+    "happy": "Happy",
+    "sad": "Sad",
+    "surprise": "Surprise",
+    "neutral": "Neutral"
+  },
+  "excluded_source_classes": ["disgust", "fear"],
+  "class_to_index": {
+    "Angry": 0,
+    "Happy": 1,
+    "Sad": 2,
+    "Surprise": 3,
+    "Neutral": 4
+  },
+  "index_to_class": {
+    "0": "Angry",
+    "1": "Happy",
+    "2": "Sad",
+    "3": "Surprise",
+    "4": "Neutral"
+  },
+  "num_classes": 5,
+  "model_version": "0.1.0"
+}

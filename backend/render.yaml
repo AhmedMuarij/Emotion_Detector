@@ -1,0 +1,32 @@
+# Render deployment config for EmotionAI backend
+# Docs: https://render.com/docs/render-yaml
+#
+# Deploy: push to GitHub → Render picks this up automatically.
+# Alternatively, configure manually via the Render dashboard.
+
+services:
+  - type: web
+    name: emotionai-backend
+    runtime: python
+    region: oregon   # choose a region close to your Vercel frontend
+    plan: free       # upgrade for production workloads (free has cold starts)
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    # Health check — Render uses this to determine if deployment succeeded
+    healthCheckPath: /health
+
+    envVars:
+      - key: CORS_ORIGINS
+        value: https://your-app.vercel.app  # ← replace with your Vercel URL
+      - key: MODEL_PATH
+        value: ../models/emotion_cnn.keras
+      - key: MODEL_METADATA_PATH
+        value: ../models/metadata.json
+      - key: MAX_UPLOAD_BYTES
+        value: 5242880
+
+    # The model file must be committed to the repo (or fetched at build time).
+    # emotion_cnn.keras is tracked via Git LFS or committed directly if <100MB.
+    # See docs/deployment.md for options.

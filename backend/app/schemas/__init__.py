@@ -1,0 +1,1 @@
+"""EmotionAI backend schemas package."""

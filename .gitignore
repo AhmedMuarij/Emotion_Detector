@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ML / data artifacts (do not commit raw datasets or large binaries)
+data/raw/
+data/processed/
+data/reports/
+train/
+test/
+archive.zip
+*.csv
+!shared/**/*.json
+
+# Models (track metadata only; large weights stay local / released separately)
+models/*.keras
+models/*.h5
+models/*.hdf5
+models/*.pb
+models/*.onnx
+models/*.tflite
+!models/.gitkeep
+!models/metadata.example.json
+!models/metadata.json
+!models/emotion_cnn.keras
+
+
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+frontend/.turbo/
+frontend/*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+**/credentials.json
+**/kaggle.json
+*.pem
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log
+
+# Build / deploy
+dist/
+build/
+.vercel/
+.render/
