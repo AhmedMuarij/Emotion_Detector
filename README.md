@@ -1,279 +1,191 @@
-# 🧠 EmotionAI – Real-Time Facial Expression Recognition Platform
+# 🧠 EmotionAI — Real-Time Facial Expression Recognition
 
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![TensorFlow 2.16](https://img.shields.io/badge/TensorFlow-2.16-FF6F00?logo=tensorflow&logoColor=white)](https://www.tensorflow.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-Vanilla_Soft_UI-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <strong>An end-to-end computer vision platform that detects visible facial expressions through a webcam and presents predictions in a modern web dashboard.</strong>
+</p>
 
-An end-to-end, production-ready computer vision and deep learning platform for real-time facial expression recognition. Built with a custom **Convolutional Neural Network (CNN)** trained on a balanced **FER2013** dataset, served via an asynchronous **FastAPI** backend, and visualized through a modern, responsive **Next.js** dashboard.
+<p align="center">
+  <a href="https://emotion-detector-henna.vercel.app">Live Demo</a> •
+  <a href="https://emotion-detector-backend-26w2.onrender.com/docs">API Documentation</a> •
+  <a href="https://github.com/AhmedMuarij/Emotion_Detector">Source Code</a>
+</p>
 
----
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16-FF6F00?logo=tensorflow&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
 
-## 🔗 Live Deployments
+## 📌 Overview
 
-| Component | Platform | Status | URL |
-|---|---|---|---|
-| **Backend API** | Render | ![Active](https://img.shields.io/badge/Status-Live-2ea44f) | [emotion-detector-backend-26w2.onrender.com](https://emotion-detector-backend-26w2.onrender.com/health) |
-| **Interactive API Docs** | Swagger / OpenAPI | ![Docs](https://img.shields.io/badge/Docs-Swagger-85EA2D?logo=swagger&logoColor=black) | [API Documentation](https://emotion-detector-backend-26w2.onrender.com/docs) |
-| **Frontend Dashboard** | Vercel | ![Active](https://img.shields.io/badge/Status-Deploying-blue) | *Deploying on Vercel* |
+EmotionAI is a full-stack machine learning application built around a custom Convolutional Neural Network (CNN) trained on a balanced subset of the FER2013 dataset. The system captures webcam frames in the browser, sends images to an asynchronous FastAPI backend, performs face localization and model inference, and returns emotion probabilities to a responsive Next.js dashboard.
 
----
+> **Important:** The model predicts visible facial expression patterns based on dataset annotations. It does not determine a person's internal emotional state, intentions, mental health, or personality.
 
-## ✨ Key Features
+## ✨ Features
 
-- **Real-Time Webcam Inference**: Client captures frames at 1 FPS, sending lightweight JPEG payloads to the backend with non-blocking async requests.
-- **Automated Face Localization**: OpenCV Haar Cascade detects the primary face region and dynamically crops it with a 10% safety margin before preprocessing.
-- **Balanced CNN Model (v0.2.0)**: Overcomes classic class-imbalance bias using 3,000 balanced images per class and dynamic augmentation, achieving **62.54% test accuracy** on FER2013 (human baseline is ~65%).
-- **5 Emotion Classes**: Recognizes **Happy**, **Surprise**, **Neutral**, **Angry**, and **Sad** with high confidence.
-- **Privacy-First Architecture**: Zero image retention. Frames are processed entirely in memory as byte streams and discarded immediately after prediction.
-- **Modern Soft UI/UX**: Clean light theme designed without harsh dark gradients, featuring circular SVG confidence gauges and real-time per-class probability breakdowns.
+- 🎥 Real-time webcam inference with lightweight frame sampling
+- 👤 Face localization using OpenCV Haar Cascade
+- 🧠 Custom Keras CNN trained on FER2013
+- 😊 Five supported classes: Happy, Surprise, Neutral, Angry, and Sad
+- 📊 Confidence score and per-class probability visualization
+- ⚡ Asynchronous FastAPI inference API
+- 🔒 Privacy-focused processing with no image retention by design
+- ☁️ Cloud deployment using Render and Vercel
+- 📚 Interactive Swagger/OpenAPI documentation
 
----
+## 🚀 Live Services
 
-## 🏛️ System Architecture
+| Service | Platform | Link |
+|---|---|---|
+| Frontend Dashboard | Vercel | [Open application](https://emotion-detector-henna.vercel.app) |
+| Backend API | Render | [Health check](https://emotion-detector-backend-26w2.onrender.com/health) |
+| API Documentation | Swagger/OpenAPI | [Open docs](https://emotion-detector-backend-26w2.onrender.com/docs) |
+
+## 📈 Model Performance
+
+The current balanced CNN version is documented with **62.54% overall test accuracy** on a held-out FER2013 evaluation set.
+
+| Expression | Recall / Accuracy |
+|---|---:|
+| Happy | 86.0% |
+| Surprise | 80.4% |
+| Neutral | 68.0% |
+| Angry | 38.5% |
+| Sad | 30.4% |
+| **Overall** | **62.54%** |
+
+These metrics should be interpreted as benchmark results on the evaluation data, not as a guarantee of real-world accuracy across different lighting conditions, faces, cultures, or environments.
+
+## 🏗️ System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Frontend (Next.js 16 + TypeScript)"]
-        WC[Webcam Stream] -->|1 frame / sec| Canvas[Capture & Canvas Render]
-        Canvas -->|JPEG Blob| Fetch[API Client / lib/api.ts]
-        Fetch -->|Render Updates| UI[Prediction Display & Confidence Gauge]
-    end
-
-    subgraph Cloud ["Cloud Hosting (Render)"]
-        direction TB
-        Fetch -->|POST /predict multipart/form-data| API[FastAPI Async Server]
-        API --> CV[OpenCV Haar Cascade Face Detector]
-        CV -->|Cropped 48x48 Grayscale| Normalizer[Normalization /255]
-        Normalizer --> Model[Keras CNN Inference Engine]
-        Model -->|Softmax Probabilities| Response[JSON Response]
-    end
-
-    Response --> Fetch
+    A[Webcam Stream] --> B[Capture Frame]
+    B --> C[Next.js API Client]
+    C -->|JPEG multipart upload| D[FastAPI Backend]
+    D --> E[OpenCV Face Detection]
+    E --> F[48x48 Grayscale Preprocessing]
+    F --> G[Keras CNN Model]
+    G --> H[Emotion Probabilities]
+    H --> I[Dashboard Visualization]
 ```
 
----
+## 📂 Project Structure
 
-## 🔬 Model Performance & Benchmarks
-
-The model was trained on a balanced subset of **FER2013** using randomized data augmentation (horizontal flip, small rotation, zoom, shift) over 25 epochs.
-
-### Classification Metrics (Held-out Test Set)
-
-| Emotion | Test Samples | Accuracy / Recall | Precision | F1-Score |
-|---|---|---|---|---|
-| **Happy 😊** | 1,774 | **86.0%** | 0.81 | 0.83 |
-| **Surprise 😮** | 831 | **80.4%** | 0.74 | 0.77 |
-| **Neutral 😐** | 1,233 | **68.0%** | 0.58 | 0.63 |
-| **Angry 😠** | 958 | **38.5%** | 0.52 | 0.44 |
-| **Sad 😢** | 1,247 | **30.4%** | 0.48 | 0.37 |
-| **Overall Accuracy** | **6,043** | **62.54%** | **0.63** | **0.61** |
-
-> **Ethical & Scientific Disclaimer**: This model classifies *visible facial muscle movements* based on standardized dataset annotations. It does not measure internal affective state, mental health, cognitive ability, or intent.
-
----
-
-## 📂 Repository Structure
-
-```
+```text
 Emotion_Detector/
-├── backend/                  # FastAPI Application
-│   ├── app/
-│   │   ├── api/routes.py     # Endpoints: /health, /model-info, /predict
-│   │   ├── core/config.py    # Environment settings & CORS
-│   │   ├── ml/inference.py   # OpenCV face detection & Keras predictor
-│   │   ├── ml/loader.py      # Singleton thread-safe model loader
-│   │   └── main.py           # FastAPI application entrypoint
-│   ├── tests/                # Pytest suite (API & inference tests)
-│   ├── requirements.txt      # Python dependencies (pinned for Linux/Render)
-│   └── render.yaml           # Infrastructure-as-code for Render
-│
-├── frontend/                 # Next.js 16 Web Dashboard
-│   ├── app/
-│   │   ├── globals.css       # Soft UI tokens & responsive design
-│   │   ├── layout.tsx        # SEO meta & HTML root
-│   │   └── page.tsx          # Main dashboard container
-│   ├── components/
-│   │   ├── WebcamCapture.tsx # Browser camera streaming & frame sampling
-│   │   ├── CameraControls.tsx# Start/Stop buttons & status pills
-│   │   └── PredictionDisplay.tsx # Gauge meter & probability breakdown
-│   ├── lib/                  # Typed API client & response types
-│   └── package.json
-│
-├── ml/                       # Machine Learning Engineering Pipeline
-│   ├── preprocessing/        # FER2013 extraction, filtering & normalization
-│   ├── training/
-│   │   ├── model.py          # 4-block CNN architecture definition
-│   │   ├── train.py          # Standard training pipeline
-│   │   └── train_balanced.py # Balanced sampling + online augmentation trainer
-│   └── evaluation/           # Evaluation scripts & confusion matrix plotting
-│
-├── models/
-│   ├── emotion_cnn.keras     # Trained model weights (tracked via Git LFS)
-│   └── metadata.json         # Runtime metadata & benchmark metrics
-└── .python-version           # Pinned to Python 3.11.9
+├── backend/        # FastAPI application, routes, inference and tests
+├── frontend/       # Next.js + TypeScript dashboard
+├── ml/             # Preprocessing, training and evaluation pipeline
+├── models/         # Trained model and metadata
+├── shared/         # Shared project resources
+├── docs/           # Documentation and project assets
+├── .env.example
+├── pytest.ini
+└── README.md
 ```
 
----
+## 🛠️ Local Setup
 
-## 🛠️ Local Development Setup
+### Requirements
 
-### Prerequisites
-- **Python 3.10** or **3.11**
-- **Node.js 18+** and **npm**
-- **Git LFS** (`git lfs install`)
+- Python 3.10 or 3.11
+- Node.js 18+
+- Git LFS
 
----
+### 1. Clone the repository
 
-### 1. Clone the Repository
 ```bash
 git clone https://github.com/AhmedMuarij/Emotion_Detector.git
 cd Emotion_Detector
 git lfs pull
 ```
 
----
+### 2. Run the backend
 
-### 2. Backend Setup
 ```bash
-# Create virtual environment
 python -m venv .venv
 
-# Activate on Windows:
+# Windows
 .venv\Scripts\activate
-# Or on macOS/Linux:
+
+# macOS/Linux
 # source .venv/bin/activate
 
-# Install dependencies
 pip install -r backend/requirements.txt
-
-# Run FastAPI backend with live reload
 cd backend
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
-Backend will be available at `http://127.0.0.1:8000`.  
-Swagger documentation is available at `http://127.0.0.1:8000/docs`.
 
----
+Backend: `http://127.0.0.1:8000`  
+Swagger docs: `http://127.0.0.1:8000/docs`
 
-### 3. Frontend Setup
-In a new terminal:
+### 3. Run the frontend
+
+Open a second terminal:
+
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
+```
 
-# Create environment configuration
-echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000" > .env.local
+Create `frontend/.env.local`:
 
-# Run Next.js development server
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+Then start the app:
+
+```bash
 npm run dev
 ```
-Open **`http://localhost:3000`** in your browser.
 
----
+Frontend: `http://localhost:3000`
 
-### 4. Running Tests
-To run backend unit and integration tests:
+### 4. Run tests
+
 ```bash
 pytest backend/tests -v
 ```
 
----
+## 📡 API Endpoints
 
-## 📡 API Reference
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Service and model health status |
+| GET | `/model-info` | Model version, classes and input details |
+| POST | `/predict` | Predict expression from an image upload |
 
-### 1. Health Check
-`GET /health`
-```json
-{
-  "status": "ok",
-  "model_loaded": true,
-  "version": "0.2.0"
-}
-```
+The `/predict` endpoint accepts an image using `multipart/form-data` with the field name `file`.
 
-### 2. Model Metadata
-`GET /model-info`
-```json
-{
-  "model_name": "emotion_cnn",
-  "model_version": "0.2.0",
-  "num_classes": 5,
-  "supported_expressions": ["Angry", "Happy", "Sad", "Surprise", "Neutral"],
-  "input": {
-    "height": 48,
-    "width": 48,
-    "channels": 1,
-    "color_mode": "grayscale",
-    "normalization": "divide_by_255"
-  }
-}
-```
+## 🔬 Technical Highlights
 
-### 3. Expression Prediction
-`POST /predict`  
-**Content-Type:** `multipart/form-data`  
-**Body:** `file`: `image/jpeg` or `image/png`
+- Face crops are converted to grayscale and normalized by dividing pixel values by 255.
+- The frontend samples webcam frames and sends lightweight JPEG payloads.
+- The backend uses asynchronous request handling and a reusable model loader.
+- The repository separates the ML training pipeline from application inference code.
+- The project includes deployment configuration for cloud hosting.
 
-**Response:**
-```json
-{
-  "face_detected": true,
-  "prediction": {
-    "label": "Happy",
-    "confidence": 0.8645
-  },
-  "probabilities": {
-    "Happy": 0.8645,
-    "Neutral": 0.0821,
-    "Surprise": 0.0312,
-    "Sad": 0.0142,
-    "Angry": 0.0080
-  },
-  "processing_time_ms": 18.4
-}
-```
+## 🧭 Future Improvements
 
----
-
-## 🚀 Cloud Deployment
-
-### Backend on Render
-1. Connect your repository to [Render](https://render.com).
-2. Create a new **Web Service** pointing to the repository.
-3. Configure:
-   - **Root Directory:** `backend`
-   - **Runtime:** `Python 3`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-   - **Environment Variables:**
-     - `PYTHON_VERSION`: `3.11.9`
-     - `CORS_ORIGINS`: `*` (or your frontend domain)
-     - `MODEL_PATH`: `../models/emotion_cnn.keras`
-     - `MODEL_METADATA_PATH`: `../models/metadata.json`
-
-### Frontend on Vercel
-1. Import repository on [Vercel](https://vercel.com).
-2. Set **Root Directory** to `frontend`.
-3. Add Environment Variable:
-   - `NEXT_PUBLIC_API_BASE_URL`: `https://your-render-backend.onrender.com`
-4. Click **Deploy**.
-
----
+- Prediction smoothing across consecutive frames
+- Multi-face detection and tracking
+- Session analytics and historical charts
+- Model comparison and experiment tracking
+- Improved performance across underrepresented expressions
+- Automated CI checks and expanded test coverage
 
 ## 👤 Author
 
-**Ahmed Muarij**  
-- **GitHub:** [@AhmedMuarij](https://github.com/AhmedMuarij)
-- **Project:** [Emotion_Detector](https://github.com/AhmedMuarij/Emotion_Detector)
+**Ahmed Muarij Siddiqui**
 
----
+- GitHub: [@AhmedMuarij](https://github.com/AhmedMuarij)
+- Portfolio: [ahmed-muarij-portfolio.vercel.app](https://ahmed-muarij-portfolio.vercel.app/)
+- Project repository: [Emotion_Detector](https://github.com/AhmedMuarij/Emotion_Detector)
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the [MIT License](LICENSE).
