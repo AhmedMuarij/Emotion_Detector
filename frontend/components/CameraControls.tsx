@@ -69,9 +69,9 @@ export default function CameraControls({
         <div className="alert alert-error" role="alert">
           <span style={{ flexShrink: 0 }}>⚠️</span>
           <div>
-            <p style={{ fontWeight: 600, fontSize: "0.85rem" }}>Backend unavailable</p>
+            <p style={{ fontWeight: 600, fontSize: "0.85rem" }}>Backend is waking up</p>
             <p style={{ fontSize: "0.75rem", marginTop: 2, opacity: 0.8 }}>
-              Start the FastAPI server on{" "}
+              This free Render server may need a few minutes after being idle. EmotionAI is retrying automatically. Backend:{" "}
               <code
                 className="mono"
                 style={{
