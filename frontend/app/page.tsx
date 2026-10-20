@@ -58,28 +58,56 @@ export default function HomePage() {
     }
   }, [user, authLoading, router]);
 
+  // Render Free services can sleep while idle. Probe sequentially and retry
+  // automatically so a cold start does not leave the dashboard stuck offline.
   useEffect(() => {
     let mounted = true;
-    const controller = new AbortController();
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let activeController: AbortController | undefined;
+    let delayMs = 5_000;
 
     const probe = async () => {
-      const healthResult = await checkHealth(controller.signal);
-      if (!mounted) return;
+      activeController = new AbortController();
+      const timeout = setTimeout(() => activeController?.abort(), 12_000);
 
-      if (healthResult.ok && healthResult.data.status === "ok") {
-        setState((s) => ({ ...s, backendAvailable: true }));
-        const infoResult = await getModelInfo(controller.signal);
-        if (mounted && infoResult.ok) {
-          setState((s) => ({ ...s, modelInfo: infoResult.data }));
+      try {
+        const healthResult = await checkHealth(activeController.signal);
+        if (!mounted) return;
+
+        const ready =
+          healthResult.ok &&
+          healthResult.data.status === "ok" &&
+          healthResult.data.model_loaded;
+
+        if (ready) {
+          setState((s) => ({ ...s, backendAvailable: true }));
+          delayMs = 30_000;
+
+          const infoResult = await getModelInfo(activeController.signal);
+          if (mounted && infoResult.ok) {
+            setState((s) => ({ ...s, modelInfo: infoResult.data }));
+          }
+        } else {
+          setState((s) => ({ ...s, backendAvailable: false }));
+          delayMs = 5_000;
         }
-      } else {
-        setState((s) => ({ ...s, backendAvailable: false }));
+      } catch {
+        if (mounted) {
+          setState((s) => ({ ...s, backendAvailable: false }));
+          delayMs = 5_000;
+        }
+      } finally {
+        clearTimeout(timeout);
+        if (mounted) retryTimer = setTimeout(probe, delayMs);
       }
     };
 
-    probe();
-    const interval = setInterval(probe, 15_000);
-    return () => { mounted = false; controller.abort(); clearInterval(interval); };
+    void probe();
+    return () => {
+      mounted = false;
+      activeController?.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, []);
 
   const handleCameraStatus = useCallback((status: CameraStatus) => {
