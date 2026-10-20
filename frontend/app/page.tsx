@@ -67,11 +67,12 @@ export default function HomePage() {
     let delayMs = 5_000;
 
     const probe = async () => {
-      activeController = new AbortController();
-      const timeout = setTimeout(() => activeController?.abort(), 12_000);
+      const controller = new AbortController();
+      activeController = controller;
+      const timeout = setTimeout(() => controller.abort(), 12_000);
 
       try {
-        const healthResult = await checkHealth(activeController.signal);
+        const healthResult = await checkHealth(controller.signal);
         if (!mounted) return;
 
         const ready =
@@ -83,7 +84,7 @@ export default function HomePage() {
           setState((s) => ({ ...s, backendAvailable: true }));
           delayMs = 30_000;
 
-          const infoResult = await getModelInfo(activeController.signal);
+          const infoResult = await getModelInfo(controller.signal);
           if (mounted && infoResult.ok) {
             setState((s) => ({ ...s, modelInfo: infoResult.data }));
           }
